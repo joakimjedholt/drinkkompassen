@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Drinkkompassen – Klustrad layout</title>
+  <title>Drinkkompassen – Klustrad layout + kontext-sök</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root{
       --bg:#F7FAFF; --text:#1F2937; --muted:#6B7280;
       --card:#FFFFFF; --accent:#2563EB; --highlight:#93C5FD;
+      --neighbor:#BFDBFE; /* dämpad blå för icke-träffar men relaterade noder */
       --edge:#94A3B8; --edge-hi:#60A5FA;
       --radius:12px; --shadow:0 8px 24px rgba(15,23,42,.06);
     }
@@ -26,7 +27,7 @@
     #graph.panel{padding:.25rem}
     #list.panel{max-width:1200px;margin:0 auto}
     #meta{padding:.6rem .8rem;color:var(--muted)}
-    #drink-list{max-height:150px;overflow:auto;padding:.25rem .5rem .75rem}
+    #drink-list{max-height:160px;overflow:auto;padding:.25rem .5rem .75rem}
     .drink-item{padding:.4rem .5rem;border-bottom:1px solid #E5E7EB;cursor:pointer}
     .drink-item:hover{background:#EFF6FF}
 
@@ -34,7 +35,7 @@
     .modal-card{width:min(560px,92vw);background:var(--card);border-radius:16px;margin:8vh auto 0;padding:1rem 1.25rem 1.25rem;box-shadow:var(--shadow)}
     .modal-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
     .modal-title{margin:.25rem 0 .75rem;font-size:1.4rem;font-weight:700}
-    .close{font-size:1.6rem;cursor:pointer;line-height:1;padding:.25rem .5rem;color:var(--muted)}
+    .close{font-size:1.6rem;cursor:pointer;line-height:1;padding:.25rem .5rem;color:#6B7280}
     .grid-2{display:grid;grid-template-columns:1fr;gap:.5rem}
     @media(min-width:580px){.grid-2{grid-template-columns:1fr 1fr}}
     ul{margin:.25rem 0;padding-left:1.1rem}
@@ -88,6 +89,9 @@
       const meta = document.getElementById('meta');
       const listEl = document.getElementById('drink-list');
       const groupSelect = document.getElementById('group-by');
+      const applyBtn = document.getElementById('apply');
+      const resetBtn = document.getElementById('reset');
+      const search = document.getElementById('search');
 
       let drinks = [], relations = [];
       try{
@@ -109,7 +113,7 @@
         layout: { improvedLayout: true },
         physics: {
           enabled: true,
-          solver: 'repulsion', // robust mot överlapp
+          solver: 'repulsion',
           repulsion: { nodeDistance: 260, springLength: 180, springConstant: 0.045, damping: 0.11, centralGravity: 0.12 },
           stabilization: { enabled: true, iterations: 700, updateInterval: 25, fit: true },
           minVelocity: 0.75
@@ -130,84 +134,84 @@
         }
       });
 
-      const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+      const accent   = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+      const neighbor = getComputedStyle(document.documentElement).getPropertyValue('--neighbor').trim();
       const highlight = getComputedStyle(document.documentElement).getPropertyValue('--highlight').trim();
+
+      // Hover highlight (samma som tidigare)
       net.on('hoverNode', p => {
         const id = p.node, conn = new Set(net.getConnectedNodes(id).concat(id)), eids = net.getConnectedEdges(id);
-        nodes.forEach(n => nodes.update({ id:n.id, color:{ background: conn.has(n.id)? highlight : accent } }));
-        eids.forEach(eid => edges.update({ id:eid, color:{ color:getComputedStyle(document.documentElement).getPropertyValue('--edge-hi').trim() } }));
+        nodes.forEach(n => nodes.update({ id:n.id, color:{ background: conn.has(n.id)? highlight : (n._isHit? accent : neighbor) } }));
+        eids.forEach(eid => edges.update({ id:eid, color:{ color:getComputedStyle(document.documentElement).getPropertyValue('--edge-hi').trim() }, width: 2.8 }));
       });
       net.on('blurNode', () => {
-        nodes.forEach(n => nodes.update({ id:n.id, color:{ background: accent } }));
-        edges.forEach(e => edges.update({ id:e.id, color:{ color:getComputedStyle(document.documentElement).getPropertyValue('--edge').trim() } }));
+        nodes.forEach(n => nodes.update({ id:n.id, color:{ background: n._isHit? accent : neighbor } }));
+        edges.forEach(e => edges.update({ id:e.id, color:{ color:getComputedStyle(document.documentElement).getPropertyValue('--edge').trim() }, width: 1.6 }));
       });
 
-      function showRecipe(d){
-        document.getElementById('modal-title').textContent = d.namn;
-        const ul = document.getElementById('modal-ingredients'); ul.innerHTML='';
-        d.ingredienser.forEach(i => { const li=document.createElement('li'); li.textContent=i; ul.appendChild(li); });
-        document.getElementById('modal-instruction').textContent = d.instruktion || '';
-        document.getElementById('modal').style.display = 'block';
-      }
-      document.getElementById('modal-close').onclick = () => document.getElementById('modal').style.display = 'none';
-      document.getElementById('modal').addEventListener('click', e => { if(e.target.id==='modal') e.currentTarget.style.display='none'; });
-      net.on('click', p => { if(p.nodes.length){ const d = drinks.find(x=>x.namn===p.nodes[0]); if(d) showRecipe(d); } });
-
-      function setData(arr){
+      function setData(arr, hitSet){
         nodes.clear(); edges.clear();
-        arr.forEach(d => nodes.add({ id:d.namn, label:d.namn }));
-        relations.filter(r => arr.some(x=>x.namn===r.from) && arr.some(x=>x.namn===r.to))
-                 .forEach(r => edges.add({ from:r.from, to:r.to, label:r.label }));
+        // nodes
+        arr.forEach(d => nodes.add({ id:d.namn, label:d.namn, _isHit: hitSet ? hitSet.has(d.namn) : true }));
+        // edges
+        relations
+          .filter(r => arr.some(x=>x.namn===r.from) && arr.some(x=>x.namn===r.to))
+          .forEach(r => {
+            const strong = hitSet && (hitSet.has(r.from) || hitSet.has(r.to));
+            edges.add({ from:r.from, to:r.to, label:r.label, width: strong? 2.2 : 1.4, dashes: strong? false : true });
+          });
       }
 
-      // ---- Klustrad seed-positionering ----
-      function uniqueValues(arr, key){
-        const s = new Set(arr.map(d => d[key]).filter(Boolean));
-        return Array.from(s);
-      }
-      function polarToXY(R, angleDeg){
-        const a = angleDeg * Math.PI/180;
-        return { x: R * Math.cos(a), y: R * Math.sin(a) };
-      }
+      // --- seed-positionering per grupp ---
+      function uniqueValues(arr, key){ return Array.from(new Set(arr.map(d => d[key]).filter(Boolean))); }
+      function polarToXY(R, angleDeg){ const a = angleDeg*Math.PI/180; return { x:R*Math.cos(a), y:R*Math.sin(a) }; }
       function seedPositions(arr, byKey){
         const groups = uniqueValues(arr, byKey);
         const nG = groups.length || 1;
-        const R = 400; // radie för gruppcentra
-        const jitter = 60; // spridning inom gruppen
+        const R = 420, jitter = 60;
         const centers = {};
-        // Lägg ut grupper runt en cirkel för att minska korsningar mellan block
-        groups.forEach((g, i) => {
-          const angle = (360 / nG) * i;
-          centers[g] = polarToXY(R, angle);
+        groups.forEach((g,i) => centers[g] = polarToXY(R, (360/nG)*i));
+        if(nG===1) centers[groups[0]] = { x:0, y:0 };
+        const upd = [];
+        arr.forEach(d => {
+          const c = centers[d[byKey]] || { x:0, y:0 };
+          const jx = (Math.random()*2 - 1)*jitter, jy = (Math.random()*2 - 1)*jitter;
+          upd.push({ id:d.namn, x:c.x + jx, y:c.y + jy, fixed:false });
         });
-        // Om bara en grupp: lägg i grid
-        if(nG === 1){
-          centers[groups[0]] = { x: 0, y: 0 };
-        }
-        const updates = [];
-        arr.forEach((d, idx) => {
-          const c = centers[d[byKey]] || { x: 0, y: 0 };
-          const jx = (Math.random()*2 - 1) * jitter;
-          const jy = (Math.random()*2 - 1) * jitter;
-          updates.push({ id:d.namn, x: c.x + jx, y: c.y + jy, fixed:false });
-        });
-        if(updates.length) nodes.update(updates);
+        if(upd.length) nodes.update(upd);
       }
 
-      function render(arr){
-        setData(arr);
-        // Slå på fysik för att låta nätet “sätta sig”
-        net.setOptions({ physics: { enabled:true } });
-        // Seed enligt vald klustring
-        const key = groupSelect.value; // 'kategori' eller 'sprit'
-        seedPositions(arr, key);
-        // Stabilize, sedan stäng av fysik (still dragbart)
-        net.stabilize();
-        net.once('stabilizationIterationsDone', ()=>{
-          net.setOptions({ physics:false });
+      function applyNodeColors(hitSet){
+        nodes.forEach(n => nodes.update({ id:n.id, color:{ background: (hitSet && hitSet.has(n.id)) ? accent : neighbor } }));
+      }
+
+      // --- kontext-sök: träffar + deras grannar ---
+      function buildContextSubset(q){
+        if(!q) return { visible: drinks.slice(), hits: null };
+        const hits = new Set(fuse.search(q).map(r => r.item.namn));
+        if(hits.size === 0) return { visible: [], hits };
+        const vis = new Set(hits);
+        relations.forEach(r => {
+          if(hits.has(r.from) || hits.has(r.to)){ vis.add(r.from); vis.add(r.to); }
         });
-        // Lista
-        listEl.innerHTML='';
+        // om inga relationer – visa iaf träffarna
+        const visible = drinks.filter(d => vis.has(d.namn));
+        return { visible, hits };
+      }
+
+      function render(arr, hitSet){
+        setData(arr, hitSet);
+        // seed + fysik till -> stabilisera -> fysik av
+        net.setOptions({ physics: { enabled:true } });
+        seedPositions(arr, groupSelect.value);
+        net.stabilize();
+        net.once('stabilizationIterationsDone', ()=> net.setOptions({ physics:false }));
+
+        // färgsättning
+        applyNodeColors(hitSet);
+
+        // lista
+        listEl.innerHTML = '';
         arr.forEach(d => {
           const row = document.createElement('div');
           row.className = 'drink-item';
@@ -217,27 +221,40 @@
         });
       }
 
-      // Sök
-      const search = document.getElementById('search');
+      // Modal
+      function showRecipe(d){
+        document.getElementById('modal-title').textContent = d.namn;
+        const ul = document.getElementById('modal-ingredients'); ul.innerHTML='';
+        d.ingredienser.forEach(i => { const li=document.createElement('li'); li.textContent = i; ul.appendChild(li); });
+        document.getElementById('modal-instruction').textContent = d.instruktion || '';
+        document.getElementById('modal').style.display = 'block';
+      }
+      document.getElementById('modal-close').onclick = () => document.getElementById('modal').style.display = 'none';
+      document.getElementById('modal').addEventListener('click', e => { if(e.target.id==='modal') e.currentTarget.style.display='none'; });
+      net.on('click', p => { if(p.nodes.length){ const d = drinks.find(x=>x.namn===p.nodes[0]); if(d) showRecipe(d); } });
+
+      // Sök (kontext)
       search.addEventListener('input', () => {
         const q = search.value.trim();
-        const res = q ? fuse.search(q).map(r=>r.item) : drinks;
-        render(res);
+        const { visible, hits } = buildContextSubset(q);
+        render(visible, hits);
       });
 
-      // Använd layout / Återställ
-      document.getElementById('apply').onclick = () => {
+      // Använd layout (re-render med aktuell query)
+      applyBtn.onclick = () => {
         const q = search.value.trim();
-        const res = q ? fuse.search(q).map(r=>r.item) : drinks;
-        render(res);
+        const { visible, hits } = buildContextSubset(q);
+        render(visible, hits);
       };
-      document.getElementById('reset').onclick = () => {
+
+      // Återställ
+      resetBtn.onclick = () => {
         search.value = '';
-        render(drinks);
+        render(drinks, null);
       };
 
       // Init
-      render(drinks);
+      render(drinks, null);
     }
     init();
   </script>
