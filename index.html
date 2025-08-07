@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drinkkompassen – Steg C</title>
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FFFBF7;
+      --text: #333333;
+      --accent: #3B82F6; /* Uppdaterad till blå ton */
+      --card: #FFFFFF;
+      --shadow: rgba(0,0,0,0.05);
+      --radius: 10px;
+      --font-sans: 'Inter', sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 1rem;
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1rem;
+      font-weight: 700;
+      font-size: 2rem;
+    }
+    #search-container {
+      position: relative;
+      margin-bottom: 1rem;
+      background: var(--card);
+      padding: 0.5rem;
+      border-radius: var(--radius);
+      box-shadow: 0 4px 12px var(--shadow);
+    }
+    #search {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: none;
+      outline: none;
+      font-family: var(--font-sans);
+    }
+    #autocomplete-list {
+      position: absolute;
+      top: calc(100% + 2px);
+      left: 0;
+      right: 0;
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: 0 4px 12px var(--shadow);
+      max-height: 150px;
+      overflow-y: auto;
+      z-index: 10;
+    }
+    .autocomplete-item {
+      padding: 0.5rem;
+      cursor: pointer;
+    }
+    .autocomplete-item:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    #controls {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 0.5rem;
+    }
+    #toggle-list-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border-radius: var(--radius);
+      box-shadow: 0 4px 12px var(--shadow);
+      cursor: pointer;
+      transition: transform .2s;
+    }
+    #toggle-list-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px var(--shadow);
+    }
+
+    #graph {
+      height: 600px;
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: 0 4px 12px var(--shadow);
+      margin-bottom: 1rem;
+    }
+    #count {
+      font-size: 0.9rem;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+    #drink-list {
+      background: var(--card);
+      padding: 1rem;
+      border-radius: var(--radius);
+      box-shadow: 0 4px 12px var(--shadow);
+      max-height: 100px;
+      overflow-y: auto;
+    }
+    .drink-item {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      font-size: 1.1rem;
+      color: var(--text);
+      transition: background .2s;
+    }
+    .drink-item:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 20;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+      background: var(--card);
+      margin: 10% auto;
+      padding: 1rem;
+      border-radius: var(--radius);
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 4px 12px var(--shadow);
+    }
+    .close {
+      float: right;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    #recipe-content ul { padding-left: 1.2rem; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+</head>
+<body>
+  <h1>🍹 Drinkkompassen – Steg C</h1>
+  <div id="search-container">
+    <input type="text" id="search" placeholder="Sök efter drink eller ingrediens...">
+    <div id="autocomplete-list"></div>
+  </div>
+  <div id="controls">
+    <button id="toggle-list-btn">Dölj receptlista</button>
+  </div>
+  <div id="graph"></div>
+  <p id="count"></p>
+  <div id="drink-list"></div>
+
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <span class="close" id="modal-close">&times;</span>
+      <div id="recipe-content">
+        <h2 id="modal-title"></h2>
+        <ul id="modal-ingredients"></ul>
+        <p><strong>Instruktion:</strong> <span id="modal-instruction"></span></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function init() {
+      let drinks = [], relations = [];
+      const countEl = document.getElementById('count');
+      const listEl = document.getElementById('drink-list');
+      const toggleBtn = document.getElementById('toggle-list-btn');
+      try {
+        const resp = await fetch('drinkkompassen_full.json');
+        const data = await resp.json();
+        drinks = data.drinks; relations = data.relations;
+        countEl.textContent = `Antal drinkar: ${drinks.length}`;
+      } catch (err) {
+        countEl.textContent = `Kunde inte ladda data: ${err.message}`;
+        console.error(err);
+        return;
+      }
+
+      const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+      const radius = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--radius'));
+      const fuse = new Fuse(drinks, { keys: ['namn','ingredienser'], threshold: 0.3 });
+      const nodes = new vis.DataSet(), edges = new vis.DataSet();
+      const network = new vis.Network(
+        document.getElementById('graph'),
+        { nodes, edges },
+        {
+          physics: {
+            enabled: true,
+            barnesHut: { gravitationalConstant: -2000, springLength: 300, springConstant: 0.04, damping: 0.09 },
+            stabilization: { iterations: 500, updateInterval: 25 }
+          },
+          interaction: { dragNodes: true, dragView: true, hover: true, tooltipDelay: 200 }
+        }
+      );
+
+      function styleNodeOptions(d) {
+        return {
+          id: d.namn,
+          label: d.namn,
+          shape: 'box',
+          font: { size: 16, color: '#fff', face: 'Inter' },
+          color: { background: accent },
+          shapeProperties: { borderRadius: radius }
+        };
+      }
+
+      function showRecipe(d) {
+        document.getElementById('modal-title').textContent = d.namn;
+        const ul = document.getElementById('modal-ingredients'); ul.innerHTML = '';
+        d.ingredienser.forEach(i=>{const li=document.createElement('li');li.textContent=i;ul.appendChild(li);});
+        document.getElementById('modal-instruction').textContent = d.instruktion;
+        document.getElementById('modal').style.display = 'block';
+      }
+      document.getElementById('modal-close').onclick = () => document.getElementById('modal').style.display = 'none';
+      window.onclick = e => { if(e.target.id==='modal') document.getElementById('modal').style.display='none'; };
+
+      network.on('hoverNode', params => {
+        const id = params.node;
+        const conn = network.getConnectedNodes(id).concat(id);
+        nodes.forEach(n=>{
+          nodes.update({ id: n.id, color: { background: conn.includes(n.id)? '#FFEB3B': accent } });
+        });
+      });
+      network.on('blurNode', ()=> nodes.forEach(n=> nodes.update({ id: n.id, color: { background: accent } })));
+      
+      function updateDisplay(arr) {
+        nodes.clear(); edges.clear();
+        arr.forEach(d=> nodes.add(styleNodeOptions(d)));
+        relations.filter(r=> arr.some(x=>x.namn===r.from)&& arr.some(x=>x.namn===r.to))
+                 .forEach(r=> edges.add({ from: r.from, to: r.to, arrows: 'to', label: r.label, font: { align: 'horizontal' } }));
+        network.stabilize();
+        listEl.innerHTML = '';
+        arr.forEach(d=>{
+          const div = document.createElement('div');
+          div.className = 'drink-item';
+          div.textContent = d.namn;
+          div.onclick = () => showRecipe(d);
+          listEl.appendChild(div);
+        });
+      }
+
+      toggleBtn.onclick = () => {
+        if(listEl.style.display==='none'){
+          listEl.style.display='block'; toggleBtn.textContent='Dölj receptlista';
+        } else {
+          listEl.style.display='none'; toggleBtn.textContent='Visa receptlista';
+        }
+      };
+
+      document.getElementById('search').addEventListener('input', e => {
+        const term = e.target.value.trim();
+        const results = term ? fuse.search(term).map(r=>r.item) : drinks;
+        updateDisplay(results);
+        const auto = document.getElementById('autocomplete-list'); auto.innerHTML = '';
+        results.slice(0,5).forEach(d=>{
+          const it = document.createElement('div'); it.className='autocomplete-item'; it.textContent=d.namn;
+          it.onclick = ()=>{ document.getElementById('search').value = d.namn; auto.innerHTML=''; showRecipe(d); };
+          auto.appendChild(it);
+        });
+      });
+
+      network.on('click', params => { if(params.nodes.length) showRecipe(drinks.find(x=>x.namn===params.nodes[0])); });
+      network.on('selectNode', params => { if(params.nodes.length) showRecipe(drinks.find(x=>x.namn===params.nodes[0])); });
+
+      listEl.style.display='block';
+      updateDisplay(drinks);
+    }
+    init();
+  </script>
+</body>
+</html>
