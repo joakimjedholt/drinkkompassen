@@ -10,7 +10,9 @@
     :root {
       --bg: #FFFBF7;
       --text: #333333;
-      --accent: #3B82F6; /* Uppdaterad till blå ton */
+      --accent: #3B82F6; /* Blå basfärg */
+      --highlight: #93C5FD; /* ljus blå hover */
+      /* Uppdaterad till blå ton */
       --card: #FFFFFF;
       --shadow: rgba(0,0,0,0.05);
       --radius: 10px;
@@ -192,6 +194,7 @@
       }
 
       const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+      const highlight = getComputedStyle(document.documentElement).getPropertyValue('--highlight').trim();
       const radius = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--radius'));
       const fuse = new Fuse(drinks, { keys: ['namn','ingredienser'], threshold: 0.3 });
       const nodes = new vis.DataSet(), edges = new vis.DataSet();
@@ -229,11 +232,12 @@
       document.getElementById('modal-close').onclick = () => document.getElementById('modal').style.display = 'none';
       window.onclick = e => { if(e.target.id==='modal') document.getElementById('modal').style.display='none'; };
 
+      // Blå hover-färg via --highlight
       network.on('hoverNode', params => {
         const id = params.node;
         const conn = network.getConnectedNodes(id).concat(id);
         nodes.forEach(n=>{
-          nodes.update({ id: n.id, color: { background: conn.includes(n.id)? '#FFEB3B': accent } });
+          nodes.update({ id: n.id, color: { background: conn.includes(n.id)? highlight : accent } });
         });
       });
       network.on('blurNode', ()=> nodes.forEach(n=> nodes.update({ id: n.id, color: { background: accent } })));
@@ -262,14 +266,14 @@
         }
       };
 
-      document.getElementById('search').addEventListener('input', e => {
+      document.getElementById('search').addEventListener('input', e=>{
         const term = e.target.value.trim();
-        const results = term ? fuse.search(term).map(r=>r.item) : drinks;
+        const results = term? fuse.search(term).map(r=>r.item) : drinks;
         updateDisplay(results);
-        const auto = document.getElementById('autocomplete-list'); auto.innerHTML = '';
+        const auto=document.getElementById('autocomplete-list'); auto.innerHTML='';
         results.slice(0,5).forEach(d=>{
-          const it = document.createElement('div'); it.className='autocomplete-item'; it.textContent=d.namn;
-          it.onclick = ()=>{ document.getElementById('search').value = d.namn; auto.innerHTML=''; showRecipe(d); };
+          const it=document.createElement('div'); it.className='autocomplete-item'; it.textContent=d.namn;
+          it.onclick=()=>{ document.getElementById('search').value=d.namn; auto.innerHTML=''; showRecipe(d); };
           auto.appendChild(it);
         });
       });
@@ -277,7 +281,7 @@
       network.on('click', params => { if(params.nodes.length) showRecipe(drinks.find(x=>x.namn===params.nodes[0])); });
       network.on('selectNode', params => { if(params.nodes.length) showRecipe(drinks.find(x=>x.namn===params.nodes[0])); });
 
-      listEl.style.display='block';
+      document.getElementById('drink-list').style.display='block';
       updateDisplay(drinks);
     }
     init();
