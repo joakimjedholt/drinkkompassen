@@ -2,49 +2,40 @@
 <html lang="sv">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
-<title>Drinkkompassen • index_v5.3.2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Drinkkompassen • index_v5.3.5</title>
 <style>
   :root{
     --bg:#0b1220; --panel:#101a33; --muted:#1a2440; --text:#e6edf7; --sub:#9fb3d9;
     --accent:#3b82f6; --outline:#223057; --chip:#192746;
-    --hdr:56px; --side:280px; --detail:380px;
+    --hdr:54px; --side:260px; --detail:360px;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;height:100vh;overflow:hidden}
-  /* Header */
-  header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--panel);border-bottom:1px solid var(--outline);position:fixed;left:0;top:0;right:0;z-index:100;height:var(--hdr)}
-  .left{display:flex;align-items:center;gap:10px}
-  .brand{font-weight:700;font-size:18px;margin:0}
-  /* Hamburger */
-  #filterToggle{appearance:none;border:1px solid var(--outline);background:var(--muted);color:var(--text);border-radius:10px;padding:8px 12px;cursor:pointer;display:none}
-  #filterToggle .icon{display:inline-block;width:18px;height:12px;position:relative;vertical-align:middle;margin-right:6px}
-  #filterToggle .icon:before,#filterToggle .icon:after,#filterToggle .icon span{content:"";position:absolute;left:0;right:0;height:2px;background:#e6edf7;border-radius:2px}
-  #filterToggle .icon:before{top:0}
-  #filterToggle .icon span{top:5px}
-  #filterToggle .icon:after{bottom:0}
-  /* Tabs */
-  .tabs{display:flex;gap:8px}
+  header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--panel);border-bottom:1px solid var(--outline);position:fixed;left:0;top:0;right:0;z-index:100;height:var(--hdr)}
+  h1{font-size:20px;margin:0}
+  .tabs{display:flex;gap:8px;align-items:center}
   .tab{background:var(--muted);border:1px solid var(--outline);padding:8px 12px;border-radius:10px;cursor:pointer;color:var(--text)}
   .tab.active{background:var(--accent);border-color:var(--accent)}
+  #filterToggle{display:none;margin-right:8px;background:var(--muted);border:1px solid var(--outline);color:var(--text);border-radius:10px;padding:8px 12px;cursor:pointer}
   /* Layout */
   .sidebar{position:fixed;left:0;top:var(--hdr);bottom:0;width:var(--side);overflow:auto;border-right:1px solid var(--outline);background:#0e1833;padding:14px;z-index:90;transform:translateX(0);transition:transform .25s ease}
   .content{position:fixed;left:var(--side);right:var(--detail);top:var(--hdr);bottom:0;overflow:auto;padding:16px}
   .detail{position:fixed;right:0;top:var(--hdr);bottom:0;width:var(--detail);overflow:auto;border-left:1px solid var(--outline);background:#0c1530;padding:16px}
-  .drawerOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(1px);z-index:80}
+  .drawerOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:80}
   /* Sidebar sections */
   .section{margin-bottom:18px}
   .section h3{margin:0 0 10px 0;font-size:15px;color:var(--sub)}
-  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip);border:1px solid var(--outline);border-radius:999px;padding:6px 10px;margin:4px 6px 0 0;font-size:12px;cursor:pointer}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip);border:1px solid var(--outline);border-radius:999px;padding:5px 10px;margin:4px 6px 0 0;font-size:12px;cursor:pointer}
   .chip input{accent-color:var(--accent)}
   .search, .select{width:100%;background:var(--panel);border:1px solid var(--outline);padding:8px 10px;border-radius:10px;color:var(--text)}
   .muted{color:var(--sub);font-size:12px}
   /* Cards */
   .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
   .grid{display:grid;gap:12px}
-  @media(min-width:900px){.grid{grid-template-columns:repeat(3, minmax(0,1fr))}}
+  @media(min-width:800px){.grid{grid-template-columns:repeat(3, minmax(0,1fr))}}
   .groupHeader{grid-column:1 / -1; display:block; background:#0d1730;border:1px solid var(--outline);border-radius:10px;padding:6px 10px;font-weight:600;color:#cfe0ff;width:max-content}
-  .card{background:var(--panel);border:1px solid var(--outline);border-radius:14px;padding:12px}
+  .card{background:var(--panel);border:1px solid var(--outline);border-radius:14px;padding:12px;cursor:pointer}
   .card h4{margin:0 0 6px 0;font-size:16px}
   .tags{display:flex;gap:6px;flex-wrap:wrap}
   .tag{background:var(--chip);border:1px solid var(--outline);border-radius:999px;padding:3px 8px;font-size:12px;color:var(--text)}
@@ -54,6 +45,7 @@
   .recipeBoxPrimary{background:#14254a;border:2px solid var(--accent);border-radius:14px;padding:16px 18px;box-shadow:0 10px 18px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.05);margin-bottom:16px}
   .recipeBoxPrimary h4{margin:0 0 10px 0;font-size:24px;color:#fff}
   .recipeBoxSecondary{background:#0f1b3a;border:1px dashed var(--outline);border-radius:12px;padding:12px;margin-top:10px;cursor:pointer}
+  .recipeBoxSecondary h4{margin:0 0 6px 0;font-size:16px}
   .recipeMeta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
   .ing{margin:0 0 8px 16px}
   .instr{margin:0;white-space:pre-line}
@@ -63,10 +55,10 @@
   .node text{fill:#e6edf7;font-size:11px;pointer-events:none}
   .link{stroke:#8aa1c6;stroke-opacity:.7}
   .edge-label{font-size:11px;fill:#e6edf7;pointer-events:none;paint-order:stroke;stroke:#0b1220;stroke-width:3px;stroke-linejoin:round}
-  /* Mobile rules */
+  /* Mobile */
   @media(max-width: 900px){
     #filterToggle{display:inline-block}
-    .sidebar{transform:translateX(-115%);}
+    .sidebar{transform:translateX(-110%);}
     .sidebar.open{transform:translateX(0)}
     .drawerOverlay.show{display:block}
     .content{left:0;right:0}
@@ -77,12 +69,9 @@
 </head>
 <body>
   <header>
-    <div class="left">
-      <button id="filterToggle" aria-expanded="false" aria-controls="sidebar">
-        <span class="icon"><span></span></span>
-        Filter
-      </button>
-      <h1 class="brand">Drinkkompassen</h1>
+    <div class="tabs">
+      <button id="filterToggle" aria-expanded="false">☰ Filter</button>
+      <h1>Drinkkompassen</h1>
     </div>
     <div class="tabs">
       <button class="tab active" id="tabCards">Vy: Receptkort</button>
@@ -95,7 +84,7 @@
   <aside class="sidebar" id="sidebar">
     <div class="section">
       <h3>Sök</h3>
-      <input id="search" class="search" placeholder="Sök drink (namn, sprit, kategori)"/>
+      <input id="search" class="search" placeholder="Sök drink (namn, sprit, kategori, teknik, glas)"/>
     </div>
     <div class="section">
       <h3>Spritbas</h3>
@@ -127,18 +116,17 @@
       </div>
       <div class="grid" id="grid"></div>
     </div>
-
     <div id="relPane" style="display:none">
       <svg id="graph"></svg>
     </div>
-
-    <aside class="detail" id="detailPane">
-      <h2>Drink</h2>
-      <div id="detailContent" class="muted">Välj en drink i listan för att se receptet här.</div>
-      <h3>Relaterade drinkar</h3>
-      <div id="relatedBox"></div>
-    </aside>
   </main>
+
+  <aside class="detail" id="detailPane">
+    <h2>Drink</h2>
+    <div id="detailContent" class="muted">Välj en drink i listan för att se receptet här.</div>
+    <h3>Relaterade drinkar</h3>
+    <div id="relatedBox"></div>
+  </aside>
 
 <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 <script>
@@ -148,17 +136,16 @@ let filters={sprit:new Set(),kategori:new Set(),query:"", pantry:new Set(JSON.pa
 let selected=null;
 
 /* Utils */
-const qs=(s,p=document)=>p.querySelector(s);
 function uniq(arr){return Array.from(new Set(arr.filter(Boolean)));}
 function byName(a,b){return (a||"").localeCompare(b||"");}
 
 /* Drawer */
-const sidebar = qs("#sidebar");
-const overlay = qs("#drawerOverlay");
-const filterToggle = qs("#filterToggle");
+const sidebar = document.getElementById("sidebar");
+const overlay = document.getElementById("drawerOverlay");
+const filterToggle = document.getElementById("filterToggle");
 function openDrawer(){ sidebar.classList.add("open"); overlay.classList.add("show"); filterToggle.setAttribute("aria-expanded","true"); }
 function closeDrawer(){ sidebar.classList.remove("open"); overlay.classList.remove("show"); filterToggle.setAttribute("aria-expanded","false"); }
-filterToggle.addEventListener("click",()=>{ sidebar.classList.contains("open") ? closeDrawer() : openDrawer(); });
+filterToggle.addEventListener("click",()=>{ if(sidebar.classList.contains("open")) closeDrawer(); else openDrawer(); });
 overlay.addEventListener("click", closeDrawer);
 
 /* Sidebar filters + pantry */
@@ -166,9 +153,9 @@ function renderFilters(){
   const bases = uniq(DATA.drinks.map(d=>d.sprit)).sort(byName);
   const cats  = uniq(DATA.drinks.map(d=>d.kategori)).sort(byName);
 
-  const baseBox   = qs("#baseFilters");
-  const catBox    = qs("#catFilters");
-  const pantryBox = qs("#pantryFilters");
+  const baseBox   = document.getElementById("baseFilters");
+  const catBox    = document.getElementById("catFilters");
+  const pantryBox = document.getElementById("pantryFilters");
   baseBox.innerHTML=""; catBox.innerHTML=""; pantryBox.innerHTML="";
   filters.sprit.clear(); filters.kategori.clear();
 
@@ -255,8 +242,8 @@ function groupAndSort(list, sortBy){
 
 /* Cards */
 function renderCards(){
-  const sortBy = qs("#sortBy").value;
-  const grid = qs("#grid");
+  const sortBy = document.getElementById("sortBy").value;
+  const grid = document.getElementById("grid");
   grid.innerHTML="";
   const list = filterList(DATA.drinks.slice());
   const groups = groupAndSort(list, sortBy);
@@ -274,17 +261,19 @@ function renderCards(){
         <div class="tags">
           <span class="tag">${d.sprit||""}</span>
           <span class="tag">${d.kategori||""}</span>
-          ${d.teknik?`<span class="tag">${d.teknik}</span>`:""}
-          ${d.glas?`<span class="tag">${d.glas}</span>`:""}
+          <span class="tag">${d.teknik||""}</span>
+          <span class="tag">${d.glas||""}</span>
         </div>`;
       card.addEventListener("click", ()=>{
-        selected=d; renderDetail();
-        qs("#detailPane").scrollTop=0;
+        // set and render immediately
+        selected = d;
+        renderDetail();
+        // desktop: keep layout; mobile: scroll into view and close drawer
         if (window.matchMedia("(max-width: 900px)").matches) {
           closeDrawer();
-          qs("#detailPane").scrollIntoView({behavior:"smooth", block:"start"});
+          document.getElementById("detailPane").scrollIntoView({behavior:"smooth", block:"start"});
         }
-      });
+      }, {passive:true});
       grid.appendChild(card);
     });
   });
@@ -292,15 +281,15 @@ function renderCards(){
 
 /* Detail */
 function renderDetail(){
-  const box = qs("#detailContent");
-  const relBox = qs("#relatedBox");
+  const box = document.getElementById("detailContent");
+  const relBox = document.getElementById("relatedBox");
   if(!selected){
     box.innerHTML='<span class="muted">Välj en drink i listan för att se receptet här.</span>';
     relBox.innerHTML="";
     return;
   }
   const d=selected;
-  const tags = [`<span class="tag">${d.sprit||""}</span>`,`<span class="tag">${d.kategori||""}</span>`, d.teknik?`<span class="tag">${d.teknik}</span>`:"", d.glas?`<span class="tag">${d.glas}</span>`:""].join(" ");
+  const tags = [`<span class="tag">${d.sprit||""}</span>`,`<span class="tag">${d.kategori||""}</span>`,`<span class="tag">${d.teknik||""}</span>`,`<span class="tag">${d.glas||""}</span>`].join(" ");
   const ing  = (d.ingredienser||[]).map(x=>`<li>${x}</li>`).join("");
   box.innerHTML = `
     <div class="recipeBoxPrimary">
@@ -310,18 +299,16 @@ function renderDetail(){
       <p class="instr">${d.instruktion||""}</p>
     </div>`;
 
-  // Relaterade (båda riktningar)
+  // Relaterade (båda riktningar) + pantry filter
   const rels = (DATA.relations||[]).filter(r => r.from===d.namn || r.to===d.namn);
   const relNames = rels.map(r => r.from===d.namn ? r.to : r.from);
   let relDrinks = DATA.drinks.filter(x => relNames.includes(x.namn));
-  if (filters.pantry.size>0) { relDrinks = relDrinks.filter(x => filters.pantry.has(x.sprit)); }
+  if (filters.pantry.size>0) relDrinks = relDrinks.filter(x => filters.pantry.has(x.sprit));
 
   relBox.innerHTML="";
-  if (relDrinks.length===0){
-    relBox.innerHTML = '<div class="muted">Inga relaterade drinkar matchar dina val i “Har hemma”.</div>';
-  }
+  if (relDrinks.length===0){ relBox.innerHTML='<div class="muted">Inga relaterade drinkar matchar dina val i “Har hemma”.</div>'; }
   relDrinks.forEach(rd=>{
-    const rtags = [`<span class="tag">${rd.sprit||""}</span>`,`<span class="tag">${rd.kategori||""}</span>`, rd.teknik?`<span class="tag">${rd.teknik}</span>`:"", rd.glas?`<span class="tag">${rd.glas}</span>`:""].join(" ");
+    const rtags = [`<span class="tag">${rd.sprit||""}</span>`,`<span class="tag">${rd.kategori||""}</span>`].join(" ");
     const ring  = (rd.ingredienser||[]).map(x=>`<li>${x}</li>`).join("");
     const div = document.createElement("div");
     div.className="recipeBoxSecondary";
@@ -331,12 +318,12 @@ function renderDetail(){
       <ul class="ing">${ring}</ul>
       <p class="instr">${rd.instruktion||""}</p>`;
     div.addEventListener("click", ()=>{
-      selected=rd; renderDetail();
-      qs("#detailPane").scrollTop=0;
+      selected = rd;
+      renderDetail();
       if (window.matchMedia("(max-width: 900px)").matches) {
-        qs("#detailPane").scrollIntoView({behavior:"smooth", block:"start"});
+        document.getElementById("detailPane").scrollIntoView({behavior:"smooth", block:"start"});
       }
-    });
+    }, {passive:true});
     relBox.appendChild(div);
   });
 }
@@ -367,7 +354,11 @@ function renderRelGraph(){
 
   const node = g.append("g").attr("class","nodes")
     .selectAll(".node").data(visNodes).enter().append("g").attr("class","node")
-    .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
+    .call(d3.drag()
+      .on("start", dragstarted)
+      .on("drag", dragged)
+      .on("end", dragended)
+    );
 
   node.append("circle").attr("r",10);
   node.append("text").attr("x",12).attr("y",3).text(d=>d.id);
@@ -403,11 +394,11 @@ function update(){
   else { renderRelGraph(); }
 }
 
-qs("#sortBy").addEventListener("change", update);
-qs("#search").addEventListener("input", e=>{ filters.query=e.target.value; update(); });
+document.getElementById("sortBy").addEventListener("change", update);
+document.getElementById("search").addEventListener("input", e=>{ filters.query=e.target.value; update(); });
 
-const tabCards=qs("#tabCards");
-const tabRel  =qs("#tabRel");
+const tabCards=document.getElementById("tabCards");
+const tabRel  =document.getElementById("tabRel");
 tabCards.addEventListener("click",()=>{
   tabCards.classList.add("active"); tabRel.classList.remove("active");
   document.getElementById("cardsPane").style.display="";
