@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Drinkkompassen • index_v5.0.1</title>
+<style>
+  :root{
+    --bg:#0b1220; --panel:#101a33; --muted:#1a2440; --text:#e6edf7; --sub:#9fb3d9; --accent:#3b82f6; --outline:#223057; --chip:#192746;
+    --hdr:54px; --side:260px; --detail:360px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;height:100vh;overflow:hidden}
+  header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--panel);border-bottom:1px solid var(--outline);position:fixed;left:0;top:0;right:0;z-index:100;height:var(--hdr)}
+  h1{font-size:20px;margin:0}
+  .tabs{display:flex;gap:8px}
+  .tab{background:var(--muted);border:1px solid var(--outline);padding:8px 12px;border-radius:10px;cursor:pointer;color:var(--text)}
+  .tab.active{background:var(--accent);border-color:var(--accent)}
+  /* Layout regions */
+  .sidebar{position:fixed;left:0;top:var(--hdr);bottom:0;width:var(--side);overflow:auto;border-right:1px solid var(--outline);background:#0e1833;padding:14px}
+  .content{position:fixed;left:var(--side);right:var(--detail);top:var(--hdr);bottom:0;overflow:auto;padding:16px}
+  .detail{position:fixed;right:0;top:var(--hdr);bottom:0;width:var(--detail);overflow:auto;border-left:1px solid var(--outline);background:#0c1530;padding:16px}
+  /* Sidebar */
+  .section{margin-bottom:18px}
+  .section h3{margin:0 0 10px 0;font-size:15px;color:var(--sub)}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip);border:1px solid var(--outline);border-radius:999px;padding:5px 10px;margin:4px 6px 0 0;font-size:12px;cursor:pointer}
+  .chip input{accent-color:var(--accent)}
+  .search, .select{width:100%;background:var(--panel);border:1px solid var(--outline);padding:8px 10px;border-radius:10px;color:var(--text)}
+  .muted{color:var(--sub);font-size:12px}
+  /* Cards view */
+  .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+  .grid{display:grid;gap:12px}
+  @media(min-width:800px){.grid{grid-template-columns:repeat(3, minmax(0,1fr))}}
+  .groupHeader{grid-column:1 / -1; display:block; background:#0d1730;border:1px solid var(--outline);border-radius:10px;padding:6px 10px;font-weight:600;color:#cfe0ff;width:max-content}
+  .card{background:var(--panel);border:1px solid var(--outline);border-radius:14px;padding:12px}
+  .card h4{margin:0 0 6px 0;font-size:16px}
+  .tags{display:flex;gap:6px;flex-wrap:wrap}
+  .tag{background:var(--chip);border:1px solid var(--outline);border-radius:999px;padding:3px 8px;font-size:12px;color:var(--text)}
+  /* Detail panel */
+  .detail h2{margin:0 0 8px 0;font-size:22px;color:#fff}
+  .detail h3{margin:16px 0 8px 0;font-size:16px;color:#cfe0ff}
+  .recipeBoxPrimary{
+    background:#14254a; border:2px solid var(--accent); border-radius:14px; padding:16px 18px;
+    box-shadow:0 10px 18px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.05); margin-bottom:16px;
+  }
+  .recipeBoxPrimary h4{margin:0 0 10px 0; font-size:24px; color:#fff; letter-spacing:.2px}
+  .recipeBoxPrimary .recipeMeta .tag{background:#1b2f62; border-color:#27427a; color:#e8f0ff}
+  .recipeBoxPrimary .ing{margin:0 0 10px 20px; color:#f2f6ff}
+  .recipeBoxPrimary .instr{margin:0;white-space:pre-line;color:#fff}
+  .recipeBoxSecondary{background:#0f1b3a; border:1px dashed var(--outline); border-radius:12px; padding:12px; margin-top:10px; cursor:pointer}
+  .recipeBoxSecondary h4{margin:0 0 6px 0;font-size:16px;color:#e6edf7}
+  .recipeMeta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .recipeMeta .tag{background:#13224a}
+  .ing{margin:0 0 8px 16px}
+  .instr{margin:0;white-space:pre-line}
+  /* Relations view */
+  svg{width:100%;height:75vh;background:#0b1328;border:1px solid var(--outline);border-radius:12px}
+  .node circle{fill:#3b82f6;stroke:#0b1220;stroke-width:1.2px}
+  .node text{fill:#e6edf7;font-size:11px;pointer-events:none}
+  .link{stroke:#8aa1c6;stroke-opacity:.7}
+  .edge-label{font-size:11px;fill:#e6edf7;pointer-events:none;paint-order:stroke;stroke:#0b1220;stroke-width:3px;stroke-linejoin:round}
+</style>
+</head>
+<body>
+  <header>
+    <h1>Drinkkompassen</h1>
+    <div class="tabs">
+      <button class="tab active" id="tabCards">Vy: Receptkort</button>
+      <button class="tab" id="tabRel">Vy: Relationer</button>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <div class="section">
+      <h3>Sök</h3>
+      <input id="search" class="search" placeholder="Sök drink (namn, sprit, kategori)"/>
+    </div>
+    <div class="section">
+      <h3>Spritbas</h3>
+      <div id="baseFilters"></div>
+    </div>
+    <div class="section">
+      <h3>Kategori</h3>
+      <div id="catFilters"></div>
+    </div>
+    <div class="section">
+      <h3>Har hemma</h3>
+      <div id="pantryFilters"></div>
+      <div class="muted">Välj de spritbaser du har hemma – recepten filtreras på dem.</div>
+    </div>
+    <div class="section muted">Kryssa ur för att dölja. Filtren påverkar båda vyerna.</div>
+  </aside>
+
+  <main class="content">
+    <div id="cardsPane">
+      <div class="controls">
+        <span class="muted">Sortera:</span>
+        <select id="sortBy" class="select">
+          <option value="namn">Namn (A–Ö)</option>
+          <option value="sprit">Spritbas (A–Ö)</option>
+          <option value="kategori">Kategori (A–Ö)</option>
+          <option value="teknik">Teknik (A–Ö)</option>
+          <option value="glas">Glas (A–Ö)</option>
+        </select>
+      </div>
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div id="relPane" style="display:none">
+      <svg id="graph"></svg>
+    </div>
+  </main>
+
+  <aside class="detail" id="detailPane">
+    <h2>Drink</h2>
+    <div id="detailContent" class="muted">Välj en drink i listan för att se receptet här.</div>
+    <h3>Relaterade drinkar</h3>
+    <div id="relatedBox"></div>
+  </aside>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script>
+const DATA_URL = "drinkkompassen_v1.4.0.json";
+let DATA={drinks:[],relations:[]};
+let filters={sprit:new Set(),kategori:new Set(),query:"", pantry:new Set()};
+let selected=null;
+
+/* Utils */
+function uniq(arr){return Array.from(new Set(arr.filter(Boolean)));}
+function byName(a,b){return (a||"").localeCompare(b||"");}
+
+/* Sidebar filters + pantry */
+function renderFilters(){
+  const bases = uniq(DATA.drinks.map(d=>d.sprit)).sort(byName);
+  const cats  = uniq(DATA.drinks.map(d=>d.kategori)).sort(byName);
+
+  const baseBox   = document.getElementById("baseFilters");
+  const catBox    = document.getElementById("catFilters");
+  const pantryBox = document.getElementById("pantryFilters");
+  baseBox.innerHTML=""; catBox.innerHTML=""; pantryBox.innerHTML="";
+  filters.sprit.clear(); filters.kategori.clear();
+
+  // Spritbas (visa/dölj)
+  bases.forEach(b=>{
+    const id = "b_"+b.replace(/\W+/g,"_");
+    const wrap = document.createElement("label");
+    wrap.className="chip";
+    wrap.innerHTML = `<input type="checkbox" id="${id}" checked/> <span>${b}</span>`;
+    baseBox.appendChild(wrap);
+    filters.sprit.add(b);
+    wrap.querySelector("input").addEventListener("change",e=>{
+      if(e.target.checked) filters.sprit.add(b); else filters.sprit.delete(b);
+      update();
+    });
+  });
+
+  // Kategorier
+  cats.forEach(c=>{
+    const id = "c_"+c.replace(/\W+/g,"_");
+    const wrap = document.createElement("label");
+    wrap.className="chip";
+    wrap.innerHTML = `<input type="checkbox" id="${id}" checked/> <span>${c}</span>`;
+    catBox.appendChild(wrap);
+    filters.kategori.add(c);
+    wrap.querySelector("input").addEventListener("change",e=>{
+      if(e.target.checked) filters.kategori.add(c); else filters.kategori.delete(c);
+      update();
+    });
+  });
+
+  // Har hemma (pantry)
+  bases.forEach(b=>{
+    const id = "p_"+b.replace(/\W+/g,"_");
+    const wrap = document.createElement("label");
+    wrap.className="chip";
+    const checked = filters.pantry.has(b) ? "checked" : "";
+    wrap.innerHTML = `<input type="checkbox" id="${id}" ${checked}/> <span>${b}</span>`;
+    pantryBox.appendChild(wrap);
+    wrap.querySelector("input").addEventListener("change",e=>{
+      if(e.target.checked) filters.pantry.add(b); else filters.pantry.delete(b);
+      update();
+    });
+  });
+}
+
+/* Filter + search + pantry rule */
+function filterList(list){
+  const q = filters.query.trim().toLowerCase();
+  return list.filter(d=>{
+    if(!filters.sprit.has(d.sprit)) return false;
+    if(!filters.kategori.has(d.kategori)) return false;
+    // Pantry rule: if pantry has selections, only show drinks whose base is selected
+    if(filters.pantry.size>0 && !filters.pantry.has(d.sprit)) return false;
+    if(!q) return true;
+    const hay = [d.namn,d.sprit,d.kategori,d.teknik||"",d.glas||""].join(" ").toLowerCase();
+    return hay.includes(q);
+  });
+}
+
+/* Grouping + sorting with headers */
+function groupAndSort(list, sortBy){
+  const sorted = list.sort((a,b)=> byName(a[sortBy], b[sortBy]));
+  const groups=[];
+  const headerKey = (d)=>{
+    if (sortBy==="namn"){
+      const c=(d.namn||"").trim().charAt(0).toUpperCase();
+      return c || "•";
+    }
+    return d[sortBy] || "—";
+  };
+  let current = null;
+  sorted.forEach(d=>{
+    const key = headerKey(d);
+    if(key!==current){
+      current=key;
+      groups.push({header:key, items:[]});
+    }
+    groups[groups.length-1].items.push(d);
+  });
+  return groups;
+}
+
+/* Cards view */
+function renderCards(){
+  const sortBy = document.getElementById("sortBy").value;
+  const grid = document.getElementById("grid");
+  grid.innerHTML="";
+  const list = filterList(DATA.drinks.slice());
+  const groups = groupAndSort(list, sortBy);
+
+  groups.forEach(g=>{
+    const h = document.createElement("div");
+    h.className="groupHeader";
+    h.textContent = g.header;
+    grid.appendChild(h);
+    g.items.forEach(d=>{
+      const card = document.createElement("div");
+      card.className="card"; card.tabIndex=0;
+      card.innerHTML = `
+        <h4>${d.namn}</h4>
+        <div class="tags">
+          <span class="tag">${d.sprit||""}</span>
+          <span class="tag">${d.kategori||""}</span>
+        </div>
+      `;
+      card.addEventListener("click", ()=>{ selected=d; renderDetail(); document.getElementById("detailPane").scrollTop=0; });
+      grid.appendChild(card);
+    });
+  });
+}
+
+/* Detail panel */
+function renderDetail(){
+  const box = document.getElementById("detailContent");
+  const relBox = document.getElementById("relatedBox");
+  if(!selected){
+    box.innerHTML='<span class="muted">Välj en drink i listan för att se receptet här.</span>';
+    relBox.innerHTML="";
+    return;
+  }
+  const d=selected;
+  const tags = [`<span class="tag">${d.sprit||""}</span>`,`<span class="tag">${d.kategori||""}</span>`].join(" ");
+  const ing  = (d.ingredienser||[]).map(x=>`<li>${x}</li>`).join("");
+  box.innerHTML = `
+    <div class="recipeBoxPrimary">
+      <div class="recipeMeta">${tags}</div>
+      <h4>${d.namn}</h4>
+      <ul class="ing">${ing}</ul>
+      <p class="instr">${d.instruktion||""}</p>
+    </div>
+  `;
+
+  // Relaterade (båda riktningar)
+  const rels = (DATA.relations||[]).filter(r => r.from===d.namn || r.to===d.namn);
+  const relNames = rels.map(r => r.from===d.namn ? r.to : r.from);
+  // Build and filter related drinks according to pantry selections
+  let relDrinks = DATA.drinks.filter(x => relNames.includes(x.namn));
+  if (filters.pantry.size > 0) {
+    relDrinks = relDrinks.filter(rd => filters.pantry.has(rd.sprit));
+  }
+
+  relBox.innerHTML="";
+  if (relDrinks.length === 0) {
+    relBox.innerHTML = '<div class="muted">Inga relaterade drinkar matchar dina val i "Har hemma".</div>';
+  } else {
+    relDrinks.forEach(rd=>{
+      const rtags = [`<span class="tag">${rd.sprit||""}</span>`,`<span class="tag">${rd.kategori||""}</span>`].join(" ");
+      const ring  = (rd.ingredienser||[]).map(x=>`<li>${x}</li>`).join("");
+      const div = document.createElement("div");
+      div.className="recipeBoxSecondary";
+      div.innerHTML = `
+        <h4>${rd.namn}</h4>
+        <div class="recipeMeta">${rtags}</div>
+        <ul class="ing">${ring}</ul>
+        <p class="instr">${rd.instruktion||""}</p>
+      `;
+      div.addEventListener("click", ()=>{ selected=rd; renderDetail(); document.getElementById("detailPane").scrollTop=0; });
+      relBox.appendChild(div);
+    });
+  }
+}
+
+/* Relations view */
+function renderRelGraph(){
+  const svg = d3.select("#graph");
+  svg.selectAll("*").remove();
+
+  const width = svg.node().clientWidth;
+  const height = svg.node().clientHeight;
+
+  const visNodes = filterList(DATA.drinks).map(d => ({ id:d.namn, group:d.kategori, sprit:d.sprit }));
+  const idMap = new Map(visNodes.map(n=>[n.id,n]));
+  const visLinks = (DATA.relations||[])
+    .map(l=>({ source:idMap.get(l.from), target:idMap.get(l.to), label:l.label||"" }))
+    .filter(l=>l.source && l.target);
+
+  const g = svg.append("g");
+
+  const link = g.append("g").attr("class","links")
+    .selectAll("line").data(visLinks).enter().append("line")
+    .attr("class","link").attr("stroke-width",1.2);
+
+  const labelLayer = g.append("g").attr("class","edge-labels");
+  const label = labelLayer.selectAll("text").data(visLinks).enter().append("text")
+    .attr("class","edge-label")
+    .text(d=>d.label || (d.source.id + " → " + d.target.id));
+
+  const node = g.append("g").attr("class","nodes")
+    .selectAll(".node").data(visNodes).enter().append("g").attr("class","node")
+    .call(d3.drag()
+      .on("start", dragstarted)
+      .on("drag", dragged)
+      .on("end", dragended)
+    );
+
+  node.append("circle").attr("r",10);
+  node.append("text").attr("x",12).attr("y",3).text(d=>d.id);
+
+  const zoom = d3.zoom().on("zoom",(event)=> g.attr("transform", event.transform));
+  svg.call(zoom);
+
+  const simulation = d3.forceSimulation(visNodes)
+    .force("link", d3.forceLink(visLinks).distance(60).strength(0.3))
+    .force("charge", d3.forceManyBody().strength(-90))
+    .force("center", d3.forceCenter(width/2, height/2))
+    .force("collision", d3.forceCollide().radius(18));
+
+  simulation.tick(200);
+  simulation.on("tick", ()=>{
+    link
+      .attr("x1", d=>d.source.x).attr("y1", d=>d.source.y)
+      .attr("x2", d=>d.target.x).attr("y2", d=>d.target.y);
+
+    node.attr("transform", d=>`translate(${d.x},${d.y})`);
+
+    label
+      .attr("x", d => (d.source.x + d.target.x)/2)
+      .attr("y", d => (d.source.y + d.target.y)/2);
+  });
+
+  function dragstarted(event,d){
+    if(!event.active) simulation.alphaTarget(0.3).restart();
+    d.fx=d.x; d.fy=d.y;
+  }
+  function dragged(event,d){
+    d.fx=event.x; d.fy=event.y;
+  }
+  function dragended(event,d){
+    d.fx=event.x; d.fy=event.y;
+    if(!event.active) simulation.alphaTarget(0);
+  }
+  node.on("dblclick",(event,d)=>{ d.fx=null; d.fy=null; simulation.alpha(0.6).restart(); });
+}
+
+/* View switch & updates */
+function update(){
+  const cardsActive = document.getElementById("cardsPane").style.display !== "none";
+  if(cardsActive){ renderCards(); renderDetail(); }
+  else { renderRelGraph(); }
+}
+
+document.getElementById("sortBy").addEventListener("change", update);
+document.getElementById("search").addEventListener("input", e=>{ filters.query=e.target.value; update(); });
+
+const tabCards=document.getElementById("tabCards");
+const tabRel  =document.getElementById("tabRel");
+tabCards.addEventListener("click",()=>{
+  tabCards.classList.add("active"); tabRel.classList.remove("active");
+  document.getElementById("cardsPane").style.display="";
+  document.getElementById("relPane").style.display="none";
+  update();
+});
+tabRel.addEventListener("click",()=>{
+  tabRel.classList.add("active"); tabCards.classList.remove("active");
+  document.getElementById("cardsPane").style.display="none";
+  document.getElementById("relPane").style.display="";
+  update();
+});
+
+/* Init */
+fetch(DATA_URL,{cache:"no-store"}).then(r=>r.json()).then(json=>{
+  DATA=json;
+  renderFilters();
+  update();
+}).catch(err=>{
+  console.error(err);
+  document.body.insertAdjacentHTML("beforeend", `<div style="position:fixed;left:10px;bottom:10px;background:#5d1f1f;color:#fff;padding:8px 10px;border-radius:8px">Fel vid laddning: ${err}</div>`);
+});
+</script>
+</body>
+</html>
