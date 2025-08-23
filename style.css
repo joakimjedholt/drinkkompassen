@@ -1,0 +1,70 @@
+:root{
+  --bg:#0b1220; --panel:#101a33; --muted:#1a2440; --text:#e6edf7; --sub:#9fb3d9;
+  --accent:#3b82f6; --outline:#223057; --chip:#192746;
+  --hdr:56px; --side:260px; --detail:360px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
+
+/* Header */
+.app-header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--outline);height:var(--hdr)}
+.app-header h1{margin:0;font-size:20px}
+.app-header .tab{background:var(--muted);border:1px solid var(--outline);padding:8px 12px;border-radius:10px;cursor:pointer;color:var(--text);margin-left:6px}
+.app-header .tab.active{background:var(--accent);border-color:var(--accent)}
+.only-mobile{display:none}
+
+/* Grid shell: sidebar | content | detail */
+.shell{height:calc(100vh - var(--hdr));display:grid;grid-template-columns:var(--side) 1fr var(--detail);gap:0}
+.sidebar{overflow:auto;border-right:1px solid var(--outline);background:#0e1833;padding:14px}
+.content{overflow:auto;padding:16px}
+.detail{overflow:auto;border-left:1px solid var(--outline);background:#0c1530;padding:16px}
+
+/* Sidebar sections */
+.section{margin-bottom:18px}
+.section h3{margin:0 0 10px 0;font-size:15px;color:var(--sub)}
+.search,.select{width:100%;background:var(--panel);border:1px solid var(--outline);padding:8px 10px;border-radius:10px;color:var(--text)}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--chip);border:1px solid var(--outline);border-radius:999px;padding:5px 10px;margin:4px 6px 0 0;font-size:12px;cursor:pointer}
+.chip input{accent-color:var(--accent)}
+.muted{color:var(--sub);font-size:12px}
+
+/* Cards */
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.grid{display:grid;gap:12px}
+@media(min-width:800px){.grid{grid-template-columns:repeat(3, minmax(0,1fr))}}
+.groupHeader{grid-column:1/-1;background:#0d1730;border:1px solid var(--outline);border-radius:10px;padding:6px 10px;font-weight:600;color:#cfe0ff;width:max-content}
+.card{background:var(--panel);border:1px solid var(--outline);border-radius:14px;padding:12px;cursor:pointer}
+.card h4{margin:0 0 6px 0;font-size:16px}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{background:var(--chip);border:1px solid var(--outline);border-radius:999px;padding:3px 8px;font-size:12px;color:var(--text)}
+
+/* Detail */
+.detail h2{margin:0 0 8px 0;font-size:22px;color:#fff}
+.detail h3{margin:16px 0 8px 0;font-size:16px;color:#cfe0ff}
+.recipeBoxPrimary{background:#14254a;border:2px solid var(--accent);border-radius:14px;padding:16px 18px;box-shadow:0 10px 18px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.05);margin-bottom:16px}
+.recipeBoxPrimary h4{margin:0 0 10px 0;font-size:24px;color:#fff}
+.recipeMeta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.recipeBoxSecondary{background:#0f1b3a;border:1px dashed var(--outline);border-radius:12px;padding:12px;margin-top:10px;cursor:pointer}
+.recipeBoxSecondary h4{margin:0 0 6px 0;font-size:16px}
+.ing{margin:0 0 8px 16px}
+.instr{margin:0;white-space:pre-line}
+
+/* Relations */
+svg{width:100%;height:75vh;background:#0b1328;border:1px solid var(--outline);border-radius:12px}
+.node circle{fill:#3b82f6;stroke:#0b1220;stroke-width:1.2px}
+.node text{fill:#e6edf7;font-size:11px;pointer-events:none}
+.link{stroke:#8aa1c6;stroke-opacity:.7}
+.edge-label{font-size:11px;fill:#e6edf7;pointer-events:none;paint-order:stroke;stroke:#0b1220;stroke-width:3px;stroke-linejoin:round}
+
+/* Drawer (mobile) */
+.drawerOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:90}
+.sidebar.drawer{position:fixed;left:0;top:var(--hdr);bottom:0;width:min(86vw, 320px);transform:translateX(-110%);transition:transform .25s ease;z-index:100}
+.sidebar.drawer.open{transform:translateX(0)}
+.drawerOverlay.show{display:block}
+
+@media(max-width:900px){
+  .only-mobile{display:inline-block}
+  .shell{grid-template-columns:1fr}
+  .detail{border-left:none;margin-top:10px}
+  .sidebar{display:none}
+  .sidebar.drawer{display:block}
+}

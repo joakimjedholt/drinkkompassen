@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Drinkkompassen • v5.4.5</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="left">
+      <button id="filterToggle" aria-expanded="false" class="only-mobile">☰ Filter</button>
+      <h1>Drinkkompassen</h1>
+    </div>
+    <div class="right">
+      <button class="tab active" id="tabCards">Vy: Receptkort</button>
+      <button class="tab" id="tabRel">Vy: Relationer</button>
+    </div>
+  </header>
+
+  <div class="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="section"><h3>Sök</h3><input id="search" class="search" placeholder="Sök drink (namn, sprit, kategori)"/></div>
+      <div class="section"><h3>Spritbas</h3><div id="baseFilters"></div></div>
+      <div class="section"><h3>Kategori</h3><div id="catFilters"></div></div>
+      <div class="section"><h3>Har hemma</h3><div id="pantryFilters"></div><div class="muted">Bocka i de spritbaser du har hemma.</div></div>
+      <div class="section"><h3>Status</h3><div id="statusLine" class="muted"></div></div>
+    </aside>
+
+    <main class="content">
+      <div id="cardsPane">
+        <div class="controls">
+          <span class="muted">Sortera:</span>
+          <select id="sortBy" class="select">
+            <option value="namn">Namn (A–Ö)</option>
+            <option value="sprit">Spritbas (A–Ö)</option>
+            <option value="kategori">Kategori (A–Ö)</option>
+            <option value="teknik">Teknik (A–Ö)</option>
+            <option value="glas">Glas (A–Ö)</option>
+          </select>
+        </div>
+        <div class="grid" id="grid"></div>
+      </div>
+      <div id="relPane" style="display:none"><svg id="graph"></svg></div>
+    </main>
+
+    <aside class="detail" id="detailPane">
+      <h2>Drink</h2>
+      <div id="detailContent" class="muted">Välj en drink i listan för att se receptet här.</div>
+      <h3>Relaterade drinkar</h3>
+      <div id="relatedBox"></div>
+    </aside>
+  </div>
+
+  <div class="drawerOverlay" id="drawerOverlay"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="app.js"></script>
+</body>
+</html>
