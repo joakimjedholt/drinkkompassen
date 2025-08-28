@@ -1,87 +1,160 @@
-// Drinkkompassen app (split, v6.4.1)
-window.set = window.set || function(){}; // safety noop if any legacy code tries to use set()
-
-let DATASET = {drinks: [], relations: []};
+// State
+let DATASET = {drinks:[], relations:[]};
+const S = { grid:null, search:null, sort:null, sideStatus:null, relGraph:null };
 let SELECTED = null;
-const STATE = { pantry: new Set(JSON.parse(localStorage.getItem('pantry')||'[]')), pantryActive: (localStorage.getItem('pantry_active')==='1') };
+const collator = new Intl.Collator('sv');
+const diag = (m)=>{ const el=document.getElementById('diag'); if(el) el.textContent=m; };
 
-// Elements
-const S = {
-  search: document.getElementById('search'),
-  sort: document.getElementById('sortBy'),
-  grid: document.getElementById('grid'),
-  sideStatus: document.getElementById('sideStatus'),
-  relGraph: document.getElementById('relGraph')
-};
+document.addEventListener('DOMContentLoaded', ()=>{
+  S.grid = document.getElementById('grid');
+  S.search = document.getElementById('search');
+  S.sort = document.getElementById('sortBy');
+  S.sideStatus = document.getElementById('sideStatus');
+  S.relGraph = document.getElementById('relGraph');
+  bindUI();
+  bootFromEmbeddedThenRefresh();
+});
 
-function uniq(a){ return Array.from(new Set(a.filter(Boolean))); }
-
-function buildCats(){
-  const cats = uniq((DATASET.drinks||[]).map(d=>d.kategori)).sort((a,b)=>a.localeCompare(b,'sv'));
-  const el = document.getElementById('catFilters'); if(!el) return; el.innerHTML='';
-  cats.forEach(c=>{
-    const lab=document.createElement('label'); lab.className='chip';
-    const chk=document.createElement('input'); chk.type='checkbox'; chk.checked = true; chk.dataset.cat=c;
-    chk.addEventListener('change', update);
-    lab.append(chk, document.createTextNode(' '+c));
-    el.appendChild(lab);
+function bindUI(){
+  S.search.addEventListener('input', update);
+  S.sort.addEventListener('change', update);
+  document.querySelectorAll('input[name="view"]').forEach(r=>{
+    r.addEventListener('change', ()=>{
+      const v = document.querySelector('input[name="view"]:checked').value;
+      document.getElementById('cardsPane').style.display = v==='cards'?'':'none';
+      document.getElementById('relPane').style.display = v==='relations'?'':'none';
+      if(v==='relations') renderRelations();
+    });
+  });
+  const t=document.getElementById('pantryActiveToggle'); if(t) t.addEventListener('change', update);
+  const c=document.getElementById('pantryClear'); if(c) c.addEventListener('click', ()=>{
+    document.querySelectorAll('#pantryFilters input[type=checkbox]').forEach(cb=>cb.checked=false);
+    update();
   });
 }
 
-function buildBases(){
-  const bases = uniq((DATASET.drinks||[]).map(d=>d.sprit)).sort((a,b)=>a.localeCompare(b,'sv'));
-  const el = document.getElementById('baseFilters'); if(!el) return; el.innerHTML='';
-  bases.forEach(b=>{
-    const lab=document.createElement('label'); lab.className='chip';
-    const chk=document.createElement('input'); chk.type='checkbox'; chk.checked = true; chk.dataset.base=b;
-    chk.addEventListener('change', update);
-    lab.append(chk, document.createTextNode(' '+b));
-    el.appendChild(lab);
-  });
+function normalizeDataset(j){
+  try{
+    if (Array.isArray(j)) return {drinks:j, relations:[]};
+    if (j && Array.isArray(j.drinks)) return j;
+    if (j && Array.isArray(j.recept)) return {drinks:j.recept, relations:(j.relations||[])};
+  }catch(e){}
+  return {drinks:[], relations:[]};
 }
 
-function buildPantry(){
-  const bases = uniq((DATASET.drinks||[]).map(d=>d.sprit)).sort((a,b)=>a.localeCompare(b,'sv'));
-  const el = document.getElementById('pantryFilters'); if(!el) return; el.innerHTML='';
-  bases.forEach(b=>{
-    const lab=document.createElement('label'); lab.className='chip';
-    const chk=document.createElement('input'); chk.type='checkbox'; chk.checked = STATE.pantry.has(b);
-    chk.addEventListener('change',()=>{ if(chk.checked) STATE.pantry.add(b); else STATE.pantry.delete(b); localStorage.setItem('pantry', JSON.stringify([...STATE.pantry])); update(); });
-    lab.append(chk, document.createTextNode(' '+b));
-    el.appendChild(lab);
-  });
+function bootFromEmbedded(){
+  try{
+    const tag = document.getElementById('EMBED_JSON');
+    const obj = JSON.parse(tag.textContent || '[]');
+    DATASET = normalizeDataset(obj);
+    boot();
+    diag('Boot (offline): '+(DATASET.drinks||[]).length+' drinkar');
+  }catch(e){ console.error('Embedded parse fail', e); diag('Embedded parse fail'); }
 }
 
-function filterList(list){
+function bootFromEmbeddedThenRefresh(){
+  bootFromEmbedded();
+  fetch('drinkkompassen_v1.7.0.json?cb='+Date.now(), {cache:'no-store'})
+    .then(r=>{ diag('Fetch '+r.status); return r.json(); })
+    .then(json=>{
+      const fresh = normalizeDataset(json);
+      if((fresh.drinks||[]).length){
+        DATASET = fresh; update();
+        diag('Uppdaterad från fil: '+(DATASET.drinks||[]).length);
+      }
+    })
+    .catch(e=>{ console.warn('Fetch misslyckades', e); diag('Fetch misslyckades – kör embedded'); });
+}
+
+function boot(){
+  buildFilters();
+  update();
+}
+
+function unique(list){ return Array.from(new Set(list)); }
+
+function buildFilters(){
+  const cats = unique(DATASET.drinks.map(d=>d.kategori).filter(Boolean)).sort(collator.compare);
+  const bases= unique(DATASET.drinks.map(d=>d.sprit).filter(Boolean)).sort(collator.compare);
+
+  const catBox = document.getElementById('catFilters'); if(catBox){ catBox.innerHTML='';
+    cats.forEach(c=>{
+      const lab=document.createElement('label'); lab.className='chip';
+      lab.innerHTML=`<input type="checkbox" data-type="kategori" value="${c}"> ${c}`;
+      lab.querySelector('input').addEventListener('change', update);
+      catBox.appendChild(lab);
+    });
+  }
+  const baseBox = document.getElementById('baseFilters'); if(baseBox){ baseBox.innerHTML='';
+    bases.forEach(b=>{
+      const lab=document.createElement('label'); lab.className='chip';
+      lab.innerHTML=`<input type="checkbox" data-type="sprit" value="${b}"> ${b}`;
+      lab.querySelector('input').addEventListener('change', update);
+      baseBox.appendChild(lab);
+    });
+  }
+
+  const pantryBox = document.getElementById('pantryFilters'); if(pantryBox){ pantryBox.innerHTML='';
+    bases.forEach(b=>{
+      const lab=document.createElement('label'); lab.className='chip';
+      lab.innerHTML=`<input type="checkbox" data-type="pantry" value="${b}"> ${b}`;
+      lab.querySelector('input').addEventListener('change', update);
+      pantryBox.appendChild(lab);
+    });
+  }
+}
+
+function currentFilters(){
   const q = (S.search && S.search.value || '').toLowerCase();
-  const enabledCats = new Set(Array.from(document.querySelectorAll('#catFilters input[type="checkbox"]')).filter(x=>x.checked).map(x=>x.dataset.cat));
-  const enabledBases = new Set(Array.from(document.querySelectorAll('#baseFilters input[type="checkbox"]')).filter(x=>x.checked).map(x=>x.dataset.base));
-  const pantryActive = STATE.pantryActive && STATE.pantry.size > 0;
+  const cats = Array.from(document.querySelectorAll('#catFilters input:checked')).map(i=>i.value);
+  const bases = Array.from(document.querySelectorAll('#baseFilters input:checked')).map(i=>i.value);
+  const pantryOn = document.getElementById('pantryActiveToggle')?.checked;
+  const pantry = Array.from(document.querySelectorAll('#pantryFilters input:checked')).map(i=>i.value);
+  return {q,cats,bases,pantryOn,pantry};
+}
 
-  return list.filter(d=>{
-    if (enabledCats.size && d.kategori && !enabledCats.has(d.kategori)) return false;
-    if (enabledBases.size && d.sprit && !enabledBases.has(d.sprit)) return false;
-    if (pantryActive && !STATE.pantry.has(d.sprit)) return false;
-    const hay = [d.namn,d.sprit,d.kategori,d.teknik,d.glas].filter(Boolean).join(' ').toLowerCase();
-    if (q && !hay.includes(q)) return false;
+function applyFilters(list){
+  const {q,cats,bases,pantryOn,pantry} = currentFilters();
+  let out = list.filter(d=>{
+    if(q && !(d.namn||'').toLowerCase().includes(q)) return false;
+    if(cats.length && !cats.includes(d.kategori)) return false;
+    if(bases.length && !bases.includes(d.sprit)) return false;
+    if(pantryOn && pantry && pantry.length && !pantry.includes(d.sprit)) return false;
     return true;
   });
+  const sort = S.sort ? S.sort.value : 'namn';
+  if(sort==='sprit'){
+    out.sort((a,b)=>{
+      const r = collator.compare(a.sprit||'', b.sprit||''); 
+      return r!==0 ? r : collator.compare(a.namn||'', b.namn||'');
+    });
+  }else if(sort==='kategori'){
+    out.sort((a,b)=>{
+      const r = collator.compare(a.kategori||'', b.kategori||''); 
+      return r!==0 ? r : collator.compare(a.namn||'', b.namn||'');
+    });
+  }else{
+    out.sort((a,b)=> collator.compare(a.namn||'', b.namn||''));
+  }
+  return out;
 }
 
-function groupAndSort(list, mode){
-  const groupsMap = new Map();
-  function add(k,d){ if(!groupsMap.has(k)) groupsMap.set(k,[]); groupsMap.get(k).push(d); }
-  if (mode==='sprit'){
-    list.sort((a,b)=> (a.sprit||'').localeCompare((b.sprit||''),'sv') || (a.namn||'').localeCompare((b.namn||''),'sv'));
-    list.forEach(d=> add(d.sprit||'Annat', d));
-  } else if (mode==='kategori'){
-    list.sort((a,b)=> (a.kategori||'').localeCompare((b.kategori||''),'sv') || (a.namn||'').localeCompare((b.namn||''),'sv'));
-    list.forEach(d=> add(d.kategori||'Övrigt', d));
-  } else {
-    list.sort((a,b)=> (a.namn||'').localeCompare((b.namn||''),'sv'));
-    list.forEach(d=> add(((d.namn||'?')+'').trim().charAt(0).toUpperCase(), d));
-  }
-  return Array.from(groupsMap.entries()).map(([header,items])=>({header,items}));
+function update(){
+  const list = applyFilters(DATASET.drinks);
+  renderCards(list);
+  if(S.sideStatus) S.sideStatus.textContent = `Visar ${list.length} drinkar`;
+}
+
+function renderCards(list=DATASET.drinks){
+  const g=S.grid; if(!g) return; g.innerHTML='';
+  if(!list.length){ document.getElementById('emptyMsg').style.display=''; return; }
+  document.getElementById('emptyMsg').style.display='none';
+  list.forEach(d=>{
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML = `<h4>${d.namn||'?'}</h4><div class="muted">${[d.sprit,d.kategori].filter(Boolean).join(' • ')}</div>`;
+    card.addEventListener('click', ()=>{ SELECTED=d; showDetail(d); document.getElementById('detail').scrollTop=0; });
+    g.appendChild(card);
+  });
 }
 
 function showDetail(dr){
@@ -91,9 +164,14 @@ function showDetail(dr){
   (dr.ingredienser||[]).forEach(x=>{ const li=document.createElement('li'); li.textContent=x; ul.appendChild(li); });
   document.getElementById('d_instr').textContent = dr.instruktion || '';
 
-  const alts=document.getElementById('d_alts'), blends=document.getElementById('d_blends'), req=document.getElementById('d_req');
-  const rels=document.getElementById('d_rels'); const extra=document.getElementById('extra');
-  const blendHdr=document.getElementById('blend_hdr'); const relHdr=document.getElementById('rel_hdr'); const reqHdr=document.getElementById('req_hdr');
+  const alts=document.getElementById('d_alts'),
+        blends=document.getElementById('d_blends'),
+        req=document.getElementById('d_req'),
+        rels=document.getElementById('d_rels'),
+        extra=document.getElementById('extra');
+  const blendHdr=document.getElementById('blend_hdr'),
+        relHdr=document.getElementById('rel_hdr'),
+        reqHdr=document.getElementById('req_hdr');
   if(!alts||!blends||!req||!rels||!extra) return;
   alts.innerHTML=''; blends.innerHTML=''; req.innerHTML=''; rels.innerHTML='';
   let has=false;
@@ -102,46 +180,62 @@ function showDetail(dr){
     dr.sprit_alternativ.forEach(t=>{ const li=document.createElement('li'); li.textContent=t; alts.appendChild(li); });
     has=true;
   }
-  const bl=[].concat(dr.rom_blend||[]).concat(dr.sprit_blend||[]);
-  if(bl.length){ bl.forEach(t=>{ const li=document.createElement('li'); li.textContent=t; blends.appendChild(li); }); if(blendHdr) blendHdr.style.display=''; has=true; }
-  else if(blendHdr) blendHdr.style.display='none';
 
-  if(dr.krav){ const k=dr.krav, must=(k.stil||[]), opt=(k.tillval||[]);
+  const bl=[].concat(dr.rom_blend||[]).concat(dr.sprit_blend||[]);
+  if(bl.length){
+    bl.forEach(t=>{ const li=document.createElement('li'); li.textContent=t; blends.appendChild(li); });
+    if(blendHdr) blendHdr.style.display='';
+    has=true;
+  } else if(blendHdr) blendHdr.style.display='none';
+
+  if(dr.krav){
+    const k=dr.krav, must=(k.stil||[]), opt=(k.tillval||[]);
     const rows=[]; if(k.bas) rows.push('Bas: '+k.bas); if(must.length) rows.push('Måste: '+must.join(', ')); if(opt.length) rows.push('Tillval: '+opt.join(', '));
     rows.forEach(t=>{ const li=document.createElement('li'); li.textContent=t; req.appendChild(li); });
-    if(reqHdr) reqHdr.style.display = rows.length? '' : 'none'; has = has || rows.length>0;
+    if(reqHdr) reqHdr.style.display = rows.length? '' : 'none'; 
+    has = has || rows.length>0;
   } else if(reqHdr) reqHdr.style.display='none';
 
-  const rel = (DATASET.relations||[]).filter(r=>r.from===dr.namn || r.to===dr.namn).map(r=>({other: r.from===dr.namn? r.to : r.from, text: (r.label||r.text||'')}));
-  if(rel.length){ rel.forEach(o=>{ const li=document.createElement('li'); li.textContent = o.other + ' – ' + o.text; rels.appendChild(li); }); if(relHdr) relHdr.style.display=''; has=true; }
-  else if(relHdr) relHdr.style.display='none';
+  // Relaterade: endast ingredienser + instruktion, klickbart
+  const relList = (DATASET.relations||[])
+    .filter(r=>r.from===dr.namn || r.to===dr.namn)
+    .map(r=>({ other: r.from===dr.namn? r.to : r.from, text: (r.label||r.text||'') }));
+
+  if(relList.length){
+    if(relHdr) relHdr.style.display='';
+    relList.forEach(o=>{
+      const match = (DATASET.drinks||[]).find(x=>x.namn===o.other);
+      const wrap = document.createElement('div');
+      wrap.className = 'related-card';
+      wrap.style.cursor='pointer';
+
+      const h = document.createElement('div');
+      h.className = 'related-head';
+      h.innerHTML = '<strong>'+ (match? match.namn : o.other) +'</strong>' + (o.text? ' <span class="rel-note">– '+o.text+'</span>' : '');
+      wrap.appendChild(h);
+
+      if(match){
+        const ingHdr = document.createElement('div'); ingHdr.className='related-sub'; ingHdr.textContent='Ingredienser'; wrap.appendChild(ingHdr);
+        const ing = document.createElement('ul'); ing.className='related-ul';
+        (match.ingredienser||[]).forEach(x=>{ const li=document.createElement('li'); li.textContent=x; ing.appendChild(li); });
+        wrap.appendChild(ing);
+
+        const instrHdr = document.createElement('div'); instrHdr.className='related-sub'; instrHdr.textContent='Instruktion'; wrap.appendChild(instrHdr);
+        const instr = document.createElement('div'); instr.className='related-instr'; instr.textContent = match.instruktion || ''; wrap.appendChild(instr);
+
+        wrap.addEventListener('click',()=>{ SELECTED=match; showDetail(match); document.getElementById('detail').scrollTop=0; });
+      } else {
+        const miss = document.createElement('div'); miss.className='related-miss'; miss.textContent='(Recept saknas i datan)';
+        wrap.appendChild(miss);
+      }
+      rels.appendChild(wrap);
+    });
+    has = true;
+  } else {
+    if(relHdr) relHdr.style.display='none';
+  }
 
   extra.style.display = has? '' : 'none';
-}
-
-function renderCards(){
-  const grid=S.grid; if(!grid) return; grid.innerHTML='';
-  const list=filterList((DATASET.drinks||[]).slice());
-  const groups=groupAndSort(list, document.getElementById('sortBy').value);
-  groups.forEach(g=>{
-    const h=document.createElement('div'); h.className='groupHeader'; h.textContent=g.header; grid.appendChild(h);
-    g.items.forEach(d=>{
-      const card=document.createElement('div'); card.className='card'; card.tabIndex=0;
-      card.innerHTML = '<h4>'+ (d.namn||'(okänt)') +'</h4>' +
-        '<div class="tags">' +
-          '<span class="tag">'+(d.sprit||'')+'</span>' +
-          '<span class="tag">'+(d.kategori||'')+'</span>' +
-          '<span class="tag">'+(d.teknik||'')+'</span>' +
-          '<span class="tag">'+(d.glas||'')+'</span>' +
-        '</div>';
-      card.addEventListener('click', ()=>{ SELECTED=d; showDetail(d); document.getElementById('detail').scrollTop=0; });
-      grid.appendChild(card);
-    });
-  });
-  if(SELECTED){ showDetail(SELECTED); }
-  const count = list.length;
-  if(S.sideStatus) S.sideStatus.textContent = 'Visar '+count+' drinkar';
-  const empty=document.getElementById('emptyMsg'); if(empty) empty.style.display = count? 'none':'block';
 }
 
 function renderRelations(){
@@ -149,21 +243,15 @@ function renderRelations(){
   const width = cont.clientWidth || 900;
   const height = cont.clientHeight || 700;
   cont.innerHTML='';
-
   if (typeof d3==='undefined'){
     cont.innerHTML='<div style="padding:10px;color:#9fb3d9">D3 kunde inte laddas.</div>';
     return;
   }
-
   const nodesMap = new Map();
   (DATASET.drinks||[]).forEach(d => { if(d && d.namn) nodesMap.set(d.namn,{id:d.namn}); });
   const links = (DATASET.relations||[]).map(l=>({source:l.from,target:l.to,label:(l.label||l.text||'')}))
     .filter(l=> nodesMap.has(l.source) && nodesMap.has(l.target));
   const nodes = Array.from(nodesMap.values());
-
-  const STORE_KEY = 'rel_positions_v641';
-  const saved = JSON.parse(localStorage.getItem(STORE_KEY)||'{}');
-  nodes.forEach(n=>{ if(saved[n.id]){ n.fx=saved[n.id].x; n.fy=saved[n.id].y; } });
 
   const svg = d3.select(cont).append('svg').attr('width',width).attr('height',height);
   const g = svg.append('g');
@@ -194,7 +282,7 @@ function renderRelations(){
       document.querySelector('input[name="view"][value="cards"]').checked=true;
       document.getElementById('cardsPane').style.display='';
       document.getElementById('relPane').style.display='none';
-      SELECTED=drink; renderCards();
+      SELECTED=drink; renderCards(applyFilters(DATASET.drinks)); showDetail(drink);
     }
   });
 
@@ -208,52 +296,5 @@ function renderRelations(){
 
   function dragstarted(ev,d){ if(!ev.active) simulation.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; }
   function dragged(ev,d){ d.fx=ev.x; d.fy=ev.y; }
-  function dragended(ev,d){ if(!ev.active) simulation.alphaTarget(0);
-    const s=JSON.parse(localStorage.getItem(STORE_KEY)||'{}'); s[d.id]={x:d.fx,y:d.fy}; localStorage.setItem(STORE_KEY,JSON.stringify(s)); }
+  function dragended(ev,d){ if(!ev.active) simulation.alphaTarget(0); }
 }
-
-function update(){ try{ renderCards(); }catch(e){ console.error('Render error:', e); const empty=document.getElementById('emptyMsg'); if(empty) empty.textContent='Fel vid rendering: '+e.message; if(empty) empty.style.display='block'; } }
-
-function wireUI(){
-  const sortSel = document.getElementById('sortBy');
-  if(sortSel) sortSel.addEventListener('change', update);
-  if(S.search) S.search.addEventListener('input', update);
-  const toggle = document.getElementById('pantryActiveToggle');
-  const clearBtn = document.getElementById('pantryClear');
-  if (toggle){
-    toggle.checked = !!STATE.pantryActive;
-    toggle.addEventListener('change', ()=>{ STATE.pantryActive = toggle.checked; localStorage.setItem('pantry_active', STATE.pantryActive ? '1' : '0'); update(); });
-  }
-  if (clearBtn){
-    clearBtn.addEventListener('click', ()=>{ STATE.pantry.clear(); localStorage.removeItem('pantry'); buildPantry(); update(); });
-  }
-  document.querySelectorAll('input[name="view"]').forEach(r=>{
-    r.addEventListener('change', e=>{
-      const v=e.target.value;
-      if(v==='cards'){ document.getElementById('cardsPane').style.display=''; document.getElementById('relPane').style.display='none'; }
-      else { document.getElementById('cardsPane').style.display='none'; document.getElementById('relPane').style.display=''; renderRelations(); }
-    });
-  });
-}
-
-function boot(){
-  buildCats(); buildBases(); buildPantry(); wireUI(); update();
-}
-
-// Robust loader: fetch JSON, normalize, boot
-(function(){
-  function normalizeDataset(j){
-    try{
-      if (Array.isArray(j)) return {drinks: j, relations: []};
-      if (j && Array.isArray(j.drinks)) return j;
-      if (j && Array.isArray(j.recept)) return {drinks: j.recept, relations: (j.relations||[])};
-      if (j && Array.isArray(j.list)) return {drinks: j.list, relations: []};
-    }catch(e){}
-    return {drinks: [], relations: []};
-  }
-  const DATA_URL = "drinkkompassen_v1.7.0.json";
-  fetch(DATA_URL, {cache:'no-store'})
-    .then(r => r.json())
-    .then(json => { DATASET = normalizeDataset(json); boot(); })
-    .catch(err => { console.warn('Fetch JSON misslyckades:', err); boot(); });
-})();
