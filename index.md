@@ -83,7 +83,7 @@ Vi kan uppdatera denna policy från tid till annan. Den senaste versionen finns 
 
 Frågor om denna privacy policy? Kontakta oss:
 
-**Email:** support@drinkkompassen.se
+**Email:** support@drinkkompassen.app
 
 ---
 
