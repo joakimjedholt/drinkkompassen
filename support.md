@@ -33,7 +33,6 @@ Hittat en bugg eller har förslag? Mejla oss på support@drinkkompassen.se
 ## Privacy
 
 Läs vår [Privacy Policy](./index.md) för information om hur vi hanterar din data.
-```
 
 support@drinkkompassen.app
 
