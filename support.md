@@ -75,7 +75,7 @@ https://[dittnamn].github.io/drinkkompassen-privacy/support
 **Uppdatera email-adress:**
 I `index.md` och `support.md`, ändra:
 ```
-support@drinkkompassen.se
+support@drinkkompassen.app
 ```
 Till din riktiga email:
 ```
